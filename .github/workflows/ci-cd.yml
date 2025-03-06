@@ -1,0 +1,80 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - '**'  
+  pull_request:
+    branches:
+      - '**'  
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Set Environment Variables
+        run: echo "NODE_ENV=production" >> $GITHUB_ENV
+
+      - name: Package the Application
+        run: tar -czf backend-build.tar.gz src/server package.json package-lock.json .env
+
+      - name: Upload Package as an Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: backend-build.tar.gz
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Download the built package
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+
+      - name: Extract package
+        run: tar -xzf backend-build.tar.gz
+
+      - name: Add Deployment Server to Known Hosts
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+
+      - name: Deploy Application to Server
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          echo "Deploying application...."
+          sudo apt-get update && sudo apt-get install -y sshpass
+          sshpass -p "$SSH_PASSWORD" scp backend-build.tar.gz $SSH_USER@$SSH_HOST:$DEPLOY_PATH
+          sshpass -p "$SSH_PASSWORD" ssh $SSH_USER@$SSH_HOST <<EOF
+            cd $DEPLOY_PATH
+            tar -xzf backend-build.tar.gz
+            rm backend-build.tar.gz
+            echo "Installing dependencies..."
+            npm install --omit=dev
+            echo "Starting the application..."
+            npm run start
+          EOF

@@ -23,20 +23,18 @@ jobs:
 
       - name: Install Dependencies
         run: npm install
-        working-directory: lynqe-app  # ✅ Ensure npm install runs in the correct directory
 
       - name: Set Environment Variables
         run: echo "NODE_ENV=production" >> $GITHUB_ENV
 
       - name: Package the Application
-        run: tar -czf lynqe-app-build.tar.gz lynqe-app
-        working-directory: .
+        run: tar -czf backend-build.tar.gz src/server package.json package-lock.json .env
 
       - name: Upload Package as an Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lynqe-app-build
-          path: lynqe-app-build.tar.gz
+          name: backend-build
+          path: backend-build.tar.gz
 
   deploy:
     needs: build
@@ -49,10 +47,10 @@ jobs:
       - name: Download the built package
         uses: actions/download-artifact@v4
         with:
-          name: lynqe-app-build
+          name: backend-build
 
       - name: Extract package
-        run: tar -xzf lynqe-app-build.tar.gz
+        run: tar -xzf backend-build.tar.gz
 
       - name: Add Deployment Server to Known Hosts
         env:
@@ -70,12 +68,11 @@ jobs:
         run: |
           echo "Deploying application...."
           sudo apt-get update && sudo apt-get install -y sshpass
-          sshpass -p "$SSH_PASSWORD" scp lynqe-app-build.tar.gz $SSH_USER@$SSH_HOST:$DEPLOY_PATH
+          sshpass -p "$SSH_PASSWORD" scp backend-build.tar.gz $SSH_USER@$SSH_HOST:$DEPLOY_PATH
           sshpass -p "$SSH_PASSWORD" ssh $SSH_USER@$SSH_HOST <<EOF
             cd $DEPLOY_PATH
-            tar -xzf lynqe-app-build.tar.gz
-            rm lynqe-app-build.tar.gz
-            cd lynqe-app  # ✅ Ensure commands run inside the correct folder
+            tar -xzf backend-build.tar.gz
+            rm backend-build.tar.gz
             echo "Installing dependencies..."
             npm install --omit=dev
             echo "Starting the application..."

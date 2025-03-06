@@ -27,14 +27,17 @@ jobs:
       - name: Set Environment Variables
         run: echo "NODE_ENV=production" >> $GITHUB_ENV
 
+      - name: Build
+        run: npm run build
+
       - name: Package the Application
-        run: tar -czf backend-build.tar.gz src/server package.json package-lock.json .env
+        run: tar -czf ui-build.tar.gz build
 
       - name: Upload Package as an Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: backend-build
-          path: backend-build.tar.gz
+          name: ui-build
+          path: ui-build.tar.gz
 
   deploy:
     needs: build
@@ -68,13 +71,9 @@ jobs:
         run: |
           echo "Deploying application...."
           sudo apt-get update && sudo apt-get install -y sshpass
-          sshpass -p "$SSH_PASSWORD" scp backend-build.tar.gz $SSH_USER@$SSH_HOST:$DEPLOY_PATH
+          sshpass -p "$SSH_PASSWORD" scp ui-build.tar.gz $SSH_USER@$SSH_HOST:$DEPLOY_PATH
           sshpass -p "$SSH_PASSWORD" ssh $SSH_USER@$SSH_HOST <<EOF
             cd $DEPLOY_PATH
-            tar -xzf backend-build.tar.gz
-            rm backend-build.tar.gz
-            echo "Installing dependencies..."
-            npm install --omit=dev
-            echo "Starting the application..."
-            npm run start
+            tar -xzf ui-build.tar.gz
+            rm ui-build.tar.gz
           EOF

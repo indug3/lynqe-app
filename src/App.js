@@ -23,7 +23,7 @@ const App = () => {
 
   return (
     <div style={{ padding: "20px", backgroundColor: "#f5f5f5", minHeight: "100vh" }}>
-      <h1>To-Do List</h1>
+      <h1>To-Do List table</h1>
       <TodoForm addTodo={addTodo} />
       <TodoList todos={todos} toggleComplete={toggleComplete} deleteTodo={deleteTodo} />
     </div>
